@@ -1,0 +1,14 @@
+[Unit]
+Description=Pick which screen each kiosk app goes on (alternates every boot)
+After=local-fs.target snapd.service
+Wants=snapd.service
+Before=kiosk-frame.service
+ConditionKernelCommandLine=!kiosk=off
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/kiosk-side-picker.sh
+
+[Install]
+WantedBy=multi-user.target

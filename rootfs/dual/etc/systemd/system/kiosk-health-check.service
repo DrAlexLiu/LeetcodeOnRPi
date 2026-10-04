@@ -1,0 +1,9 @@
+[Unit]
+Description=Dual-screen kiosk liveness + config-drift check (does NOT verify window placement)
+ConditionKernelCommandLine=!kiosk=off
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/kiosk-health-check.sh
+StandardOutput=journal
+StandardError=journal

@@ -1,0 +1,6 @@
+// VS Code runtime arguments for the kiosk `coder` account.
+// There is no desktop keyring inside the kiosk session, so store secrets
+// (e.g. GitHub sign-in tokens) with VS Code's basic built-in store instead.
+{
+    "password-store": "basic"
+}

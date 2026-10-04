@@ -1,0 +1,36 @@
+# LeetcodeOnRPi configuration.
+# Copy to kiosk.conf, edit, then run: sudo ./install.sh
+
+# dual   = two HDMI monitors: LeetCode on one, VS Code on the other,
+#          sides swap on every boot (Ubuntu Frame).
+# single = one monitor: each boot runs LeetCode OR VS Code, alternating (Cage).
+MODE=dual
+
+# Resolution of each monitor. Dual mode assumes both monitors use the same
+# mode and are placed side by side (HDMI-A-1 left, HDMI-A-2 right).
+SCREEN_WIDTH=1920
+SCREEN_HEIGHT=1080
+SCREEN_REFRESH=60.0
+
+# Page the kiosk browser opens, and the only sites it may visit
+# (space separated, Chrome URLAllowlist format; subdomains are included).
+# challenges.cloudflare.com is needed for LeetCode's bot check.
+# For leetcode.cn use: START_URL=https://leetcode.cn and ALLOWED_URLS="leetcode.cn"
+START_URL=https://leetcode.com
+ALLOWED_URLS="leetcode.com challenges.cloudflare.com"
+
+# YOUR OWN practice repository. VS Code opens it on every boot.
+# Leave empty to start with a fresh local git repo instead; you can run
+# `sudo ./scripts/setup-study-repo.sh` later to connect a remote.
+# Example: STUDY_REPO_URL=git@github.com:<your-name>/<your-practice-repo>.git
+STUDY_REPO_URL=""
+STUDY_DIR=/home/coder/study
+
+# Git identity used for commits made from the kiosk VS Code.
+GIT_USER_NAME=""
+GIT_USER_EMAIL=""
+
+# Chrome's window title at the moment it is created. Dual mode pins Chrome
+# to a screen by this exact title. It is locale dependent: if your system
+# language is not English, see docs/LESSONS.md ("swap test") to find yours.
+CHROME_INITIAL_TITLE="Untitled - Google Chrome"

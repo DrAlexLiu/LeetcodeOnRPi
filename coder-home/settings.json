@@ -1,0 +1,11 @@
+{
+    "github.copilot.enable": {
+        "*": false,
+        "plaintext": false,
+        "markdown": false,
+        "scminput": false
+    },
+    "git.enableSmartCommit": true,
+    "workbench.startupEditor": "none",
+    "window.title": "Visual Studio Code"
+}

@@ -1,0 +1,12 @@
+[Unit]
+Description=Pick and start the alternating kiosk mode
+After=local-fs.target
+ConditionKernelCommandLine=!kiosk=off
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/kiosk-mode-picker.sh
+
+[Install]
+WantedBy=multi-user.target

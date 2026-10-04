@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the dual-screen kiosk health check periodically
+ConditionKernelCommandLine=!kiosk=off
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=15min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

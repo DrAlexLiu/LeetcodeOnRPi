@@ -1,0 +1,19 @@
+layouts:
+  default:
+    cards:
+    - card-id: 0
+      HDMI-A-1:
+        state: enabled
+        mode: @SCREEN_WIDTH@x@SCREEN_HEIGHT@@@SCREEN_REFRESH@
+        position: [0, 0]
+      HDMI-A-2:
+        state: enabled
+        mode: @SCREEN_WIDTH@x@SCREEN_HEIGHT@@@SCREEN_REFRESH@
+        position: [@SCREEN_WIDTH@, 0]
+    applications:
+    - surface-title: @CHROME_INITIAL_TITLE@
+      position: [@SCREEN_WIDTH@, 0]
+      size: [@SCREEN_WIDTH@, @SCREEN_HEIGHT@]
+    - surface-title: Visual Studio Code
+      position: [0, 0]
+      size: [@SCREEN_WIDTH@, @SCREEN_HEIGHT@]

@@ -1,0 +1,10 @@
+/var/log/kiosk/*.log {
+    weekly
+    rotate 4
+    maxsize 20M
+    missingok
+    notifempty
+    copytruncate
+    compress
+    delaycompress
+}

@@ -1,0 +1,25 @@
+[Unit]
+Description=VSCode kiosk (Cage/Wayland)
+After=systemd-user-sessions.service systemd-logind.service getty@tty1.service
+Wants=systemd-logind.service
+Conflicts=kiosk-leetcode.service getty@tty1.service autovt@tty1.service
+ConditionKernelCommandLine=!kiosk=off
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+User=coder
+PAMName=cage
+TTYPath=/dev/tty1
+StandardInput=tty-fail
+StandardOutput=journal
+StandardError=journal
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+UtmpIdentifier=tty1
+Environment=XCURSOR_SIZE=48
+ExecStart=/usr/bin/dbus-run-session -- /usr/bin/cage -- /etc/kiosk/wrapper-vscode.sh
+Restart=always
+RestartSec=2
+KillMode=control-group

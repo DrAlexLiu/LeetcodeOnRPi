@@ -1,0 +1,28 @@
+[Unit]
+Description=Ubuntu Frame display host (dual-screen, shared by leetcode/coder clients)
+After=kiosk-side-picker.service systemd-user-sessions.service systemd-logind.service getty@tty1.service
+Wants=kiosk-side-picker.service systemd-logind.service
+Conflicts=getty@tty1.service autovt@tty1.service
+Upholds=kiosk-leetcode-dual.service kiosk-vscode-dual.service
+ConditionKernelCommandLine=!kiosk=off
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+User=frame
+PAMName=cage
+TTYPath=/dev/tty1
+StandardInput=tty-fail
+StandardOutput=journal
+StandardError=journal
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+UtmpIdentifier=tty1
+ExecStart=/etc/kiosk/frame-host.sh
+Restart=always
+RestartSec=2
+KillMode=control-group
+
+[Install]
+WantedBy=multi-user.target

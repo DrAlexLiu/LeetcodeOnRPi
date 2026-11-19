@@ -3,14 +3,24 @@
 
 # dual   = two HDMI monitors: LeetCode on one, VS Code on the other,
 #          sides swap on every boot (Ubuntu Frame).
-# single = one monitor: each boot runs LeetCode OR VS Code, alternating (Cage).
+# single = one monitor: each boot runs LeetCode OR VS Code, alternating.
 MODE=dual
+
+# Compositor for single mode (dual mode always uses Ubuntu Frame):
+# cage  = Cage (tested on Raspberry Pi 5 / Raspberry Pi OS)
+# frame = Ubuntu Frame, GPU-accelerated Mir (tested on Radxa Dragon Q6A / Ubuntu 24.04)
+COMPOSITOR=cage
 
 # Resolution of each monitor. Dual mode assumes both monitors use the same
 # mode and are placed side by side (HDMI-A-1 left, HDMI-A-2 right).
+# Single mode uses it only with COMPOSITOR=frame (Cage picks the preferred mode).
 SCREEN_WIDTH=1920
 SCREEN_HEIGHT=1080
 SCREEN_REFRESH=60.0
+
+# Output that single mode drives with COMPOSITOR=frame
+# (connector names: ls /sys/class/drm/ | grep -- -).
+SCREEN_OUTPUT=HDMI-A-1
 
 # Page the kiosk browser opens, and the only sites it may visit
 # (space separated, Chrome URLAllowlist format; subdomains are included).
@@ -29,6 +39,11 @@ STUDY_DIR=/home/coder/study
 # Git identity used for commits made from the kiosk VS Code.
 GIT_USER_NAME=""
 GIT_USER_EMAIL=""
+
+# yes = the coder account (VS Code) may manage Wi-Fi with nmtui/nmcli and run
+# `sudo kiosk-update` (non-interactive apt update + full-upgrade), nothing else.
+# Anything running as coder gets the same rights, AI agents in VS Code included.
+CODER_ADMIN=no
 
 # Chrome's window title at the moment it is created. Dual mode pins Chrome
 # to a screen by this exact title. It is locale dependent: if your system

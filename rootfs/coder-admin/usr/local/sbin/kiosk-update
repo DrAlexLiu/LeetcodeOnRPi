@@ -1,0 +1,35 @@
+#!/bin/sh
+# Update all apt packages without prompts: `sudo kiosk-update` (no arguments).
+#
+# The upgrade runs in its own transient system service, not in the caller's
+# terminal: upgrading can restart VS Code or Frame, and that must not kill
+# dpkg halfway. This script only starts the service and follows its log.
+set -eu
+UNIT=kiosk-update.service
+LOG=/var/log/kiosk/update.log
+
+if systemctl is-active --quiet "$UNIT"; then
+  echo "An update is already running; following its log."
+else
+  systemctl reset-failed "$UNIT" 2>/dev/null || true
+  # shellcheck disable=SC2016  # the inner shell expands $? and $rc, not this one
+  systemd-run --unit="$UNIT" --collect --quiet \
+    -p StandardOutput="truncate:$LOG" -p StandardError="append:$LOG" \
+    -E DEBIAN_FRONTEND=noninteractive -E NEEDRESTART_MODE=l \
+    /bin/sh -c '
+      date
+      apt-get update &&
+      apt-get -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold full-upgrade &&
+      apt-get -y autoremove
+      rc=$?
+      [ -f /var/run/reboot-required ] && echo "*** A reboot is required to finish the update. ***"
+      echo "kiosk-update finished, exit=$rc"
+      exit $rc'
+fi
+
+PID=$(systemctl show -p MainPID --value "$UNIT" 2>/dev/null || echo 0)
+if [ "${PID:-0}" -gt 0 ]; then
+  tail -n +1 -f --pid="$PID" "$LOG"
+else
+  cat "$LOG"
+fi

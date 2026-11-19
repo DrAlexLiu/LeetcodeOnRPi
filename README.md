@@ -31,7 +31,10 @@ notifications and no app switching. You just practise.
 | Mode     | Monitors | What happens                                                                 |
 |----------|----------|------------------------------------------------------------------------------|
 | `dual`   | 2        | LeetCode and VS Code side by side; they swap sides every boot (Ubuntu Frame) |
-| `single` | 1        | Full-screen LeetCode on one boot, full-screen VS Code on the next (Cage)     |
+| `single` | 1        | Full-screen LeetCode on one boot, full-screen VS Code on the next            |
+
+Single mode runs on Cage by default. Set `COMPOSITOR=frame` to run it on
+Ubuntu Frame instead (GPU-accelerated Mir, the same compositor as dual mode).
 
 ## What you need
 
@@ -41,6 +44,10 @@ notifications and no app switching. You just practise.
 - **Raspberry Pi OS Lite (64-bit), Debian 13 "trixie"**, with SSH enabled and an
   admin account you can SSH into. A Desktop image also works; the installer
   disables the desktop session.
+
+Also tested: **Radxa Dragon Q6A** (Qualcomm QCS6490, one HDMI port) on
+Ubuntu 24.04 with `MODE=single`, `COMPOSITOR=frame`. See
+[docs/LESSONS.md](docs/LESSONS.md#single-screen-mode-with-ubuntu-frame-radxa-dragon-q6a).
 
 ## Install
 
@@ -89,13 +96,15 @@ kept in the `leetcode` account's Chrome profile.
 |------------------------------------|--------------------------------------------------------------------------|
 | Status                             | `systemctl status 'kiosk-*'`                                             |
 | Health problems                    | `journalctl -p err -u kiosk-health-check`                                |
-| Logs (dual)                        | `sudo tail -f /var/log/kiosk/{frame,leetcode,vscode}.log`                |
+| Logs (dual, single on Frame)       | `sudo tail -f /var/log/kiosk/{frame,leetcode,vscode}.log`                |
 | Restart everything (dual)          | `sudo systemctl restart kiosk-frame`                                     |
+| Restart everything (single, Frame) | `sudo systemctl restart "kiosk-frame@$(cat /var/lib/kiosk-mode/last-mode)"` |
 | Force sides next boot (dual)       | `echo chrome_right \| sudo tee /var/lib/kiosk-side/next-layout`          |
 | Force app next boot (single)       | `echo vscode \| sudo tee /var/lib/kiosk-mode/next-mode`                  |
 | Change settings                    | edit `kiosk.conf`, `sudo ./install.sh`, reboot                           |
 | Install a VS Code extension        | `sudo -H -u coder code --install-extension ms-python.python`             |
-| Emergency: boot without the kiosk  | append ` kiosk=off` to `/boot/firmware/cmdline.txt`, reboot              |
+| Update packages from VS Code       | `sudo kiosk-update` (only with `CODER_ADMIN=yes`)                        |
+| Emergency: boot without the kiosk  | append ` kiosk=off` to the kernel command line, reboot (`install.sh` prints where it lives) |
 | Remove                             | `sudo ./uninstall.sh` (add `--purge-users` to delete the accounts)       |
 
 ## How it works
@@ -103,14 +112,16 @@ kept in the `leetcode` account's Chrome profile.
 | Account    | Runs           | Privileges                       |
 |------------|----------------|----------------------------------|
 | your admin | SSH            | sudo; never on screen            |
-| `frame`    | Ubuntu Frame   | none (`nologin`, dual mode only) |
+| `frame`    | Ubuntu Frame   | none (`nologin`, only when Frame is used) |
 | `leetcode` | Chrome kiosk   | none                             |
-| `coder`    | VS Code        | none (deliberately *not* in `docker`) |
+| `coder`    | VS Code        | none (deliberately *not* in `docker`); with `CODER_ADMIN=yes`, network settings and `sudo kiosk-update` only |
 
 - **Dual mode:** one Ubuntu Frame compositor drives both HDMI ports. Chrome and
   VS Code connect to it as equal clients from their own accounts, and are pinned
   to a screen by exact window title. A boot-time picker swaps the layout.
-- **Single mode:** a picker alternates between two full-screen Cage sessions.
+- **Single mode:** a picker alternates between two full-screen Cage sessions,
+  or with `COMPOSITOR=frame` starts `kiosk-frame@leetcode` or
+  `kiosk-frame@vscode`: Frame as `frame`, upholding the one client of this boot.
 - **Chrome policy** blocks every URL except the allowlist, along with the
   dangerous `chrome://` pages, downloads, file dialogs, DevTools, extensions,
   incognito and guest mode.
@@ -131,6 +142,8 @@ scripts/setup-study-repo.sh     deploy key + clone of your practice repo
 rootfs/common/                  files for both modes (Chrome policy, PAM, logrotate)
 rootfs/dual/                    Ubuntu Frame dual-screen units, picker, health check, layouts
 rootfs/single/                  Cage single-screen units and picker
+rootfs/single-frame/            Ubuntu Frame single-screen units, picker, display layout
+rootfs/coder-admin/             optional (CODER_ADMIN=yes): NetworkManager polkit rule, kiosk-update
 coder-home/                     default VS Code settings for the coder account
 docs/LESSONS.md                 design notes and troubleshooting
 ```

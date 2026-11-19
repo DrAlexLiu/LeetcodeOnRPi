@@ -232,6 +232,123 @@ Force the next mode with:
 echo vscode | sudo tee /var/lib/kiosk-mode/next-mode     # or leetcode
 ```
 
+## Single-screen mode with Ubuntu Frame (Radxa Dragon Q6A)
+
+Tested on: Radxa Dragon Q6A (Qualcomm QCS6490, Adreno 643), Ubuntu 24.04.5
+arm64, kernel `7.0.11-7-qcom`, Mesa 25.2.8 (freedreno), one 37" 4K monitor.
+Ubuntu Frame `457-mir2.26.0` (snap `24/stable`), Google Chrome 158,
+VS Code 1.147.
+
+`MODE=single COMPOSITOR=frame` keeps the alternating picker of the Cage mode
+but hosts each boot's app in Ubuntu Frame:
+
+```
+kiosk-mode-picker.service   (oneshot: picks leetcode or vscode, same counter as Cage mode)
+        | systemctl start kiosk-frame@<app>
+kiosk-frame@<app>.service   (User=frame, frame-host.sh from dual mode, tty1)
+        | Upholds=kiosk-<app>-frame.service
+        +-- kiosk-leetcode-frame.service  or  kiosk-vscode-frame.service
+```
+
+The client fills the screen because Frame's default policy makes every window
+full screen; the display layout has no `applications` rules.
+
+### The board has one HDMI output
+
+`/sys/class/drm/` lists `card1-HDMI-A-1` and a `Writeback-1` connector, which
+is not a display. Dual mode is not possible on this board.
+
+### 4K is 30 Hz only
+
+Frame picks the preferred mode, which here is `3840x2160@30`. Typing and
+scrolling at 30 Hz feel slow, so `kiosk.conf` sets `2560x1440@60.0`. Frame
+lists every mode the output supports in the commented header of
+`~/snap/ubuntu-frame/current/.config/frame.display` of the account that ran it,
+and its log states the mode it used:
+
+```sh
+sudo grep 'Current mode' /var/log/kiosk/frame.log    # . |_ Current mode 2560x1440 59.95Hz
+```
+
+### Proving GPU acceleration
+
+Two separate questions, two separate checks:
+
+- Frame composites on the GPU: `grep 'GL renderer' /var/log/kiosk/frame.log`
+  shows `FD643`, not `llvmpipe`.
+- Chrome renders on the GPU: a page that prints
+  `WEBGL_debug_renderer_info.UNMASKED_RENDERER_WEBGL` shows
+  `ANGLE (..., FD643, OpenGL ES 3.2)`, not SwiftShader. `chrome://gpu` given
+  on the command line opened the new-tab page instead.
+
+`vaInitialize failed` in the Chrome and VS Code logs is only about video
+decoding (VA-API) and does not affect rendering.
+
+### logind needs the VT in the foreground
+
+Frame takes the display and the input devices through logind. logind only
+hands them over when Frame's session is the active one on its VT: at boot that
+is tty1. When testing on another VT, switch to it first (`chvt` is in the
+`kbd` package). Without that, Frame logs
+`Logind TakeControl call failed ... Only owner of session may take control`,
+falls back to opening `/dev/dri/card1` directly, and still shows a picture.
+
+Frame does not log the names of input devices it opens. Check its file
+descriptors instead:
+
+```sh
+ls -l /proc/$(pgrep -u frame -f usr/local/bin/frame)/fd | grep -o '/dev/input/event[0-9]*'
+```
+
+### Testing without touching tty1
+
+A full dress rehearsal can run on tty8 while your own console session on tty1
+stays alive (useful when that session holds your SSH tunnel):
+
+```sh
+sudo chvt 8
+sudo systemd-run --unit=rehearse-frame -p User=frame -p PAMName=cage -p TTYPath=/dev/tty8 \
+  -p StandardInput=tty-fail -p TTYReset=yes -p TTYVHangup=yes -p UtmpIdentifier=tty8 \
+  /etc/kiosk/frame-host.sh
+sudo systemd-run --unit=rehearse-leetcode -p User=leetcode -p PAMName=cage \
+  -p Environment=WAYLAND_DISPLAY=/run/user/$(id -u frame)/wayland-0 \
+  /bin/sh -c 'exec google-chrome-stable --ozone-platform=wayland --kiosk https://leetcode.com'
+# ... look, then:
+sudo systemctl stop rehearse-leetcode rehearse-frame; sudo chvt 1
+```
+
+For screenshots with `grim`, enable screencopy first and remove it afterwards:
+`sudo snap set ubuntu-frame config="add-wayland-extensions=zwlr_screencopy_manager_v1"`,
+then `sudo snap unset ubuntu-frame config`.
+
+### Other differences from Raspberry Pi OS
+
+- The Radxa image has no snapd; the installer installs it with Frame.
+- `gdm3` is an alias of a static unit on Ubuntu. `install.sh` tolerates a
+  failing `systemctl disable` because `multi-user.target` alone keeps it off.
+- The kernel command line is in the systemd-boot entry
+  `/boot/efi/loader/entries/RadxaOS-<kernel>.conf` (`options` line). The boot
+  menu waits 3 seconds; press `e` there to add `kiosk=off` for one boot.
+- The first LeetCode load took 25 to 50 seconds (cold cache); later loads are
+  faster. `curl` gets HTTP 403 from Cloudflare, which is expected.
+
+## Optional: coder may manage the network and update packages
+
+`CODER_ADMIN=yes` gives the `coder` account exactly two rights:
+
+- **Network:** a polkit rule (`/etc/polkit-1/rules.d/50-kiosk-coder-network.rules`)
+  allows all `org.freedesktop.NetworkManager.*` actions, so `nmtui` and `nmcli`
+  work without `sudo`. The default rule does not apply because coder's session
+  has no seat.
+- **Updates:** `sudo kiosk-update`, a root-owned script without arguments
+  (sudoers `kiosk-update ""`). It runs `apt-get update` and a non-interactive
+  `full-upgrade` in its own transient unit, so a VS Code or Frame restart
+  during the upgrade cannot kill dpkg, and it follows the log in the terminal.
+
+Plain `sudo apt` is not granted on purpose: `apt-get -o ...` can run any
+command, and dpkg's config-file prompt offers a root shell (`Z`). Anything
+that runs as coder, including an AI agent in VS Code, gets these two rights.
+
 ## Chrome lockdown
 
 `/etc/opt/chrome/policies/managed/kiosk.json`:
@@ -268,6 +385,12 @@ refuses with `skipping ... because parent directory has insecure permissions`.
 `/etc/tmpfiles.d/kiosk.conf` pre-creates each log with its service's owner
 (`0640`). The services only append (`>>`), so they never need write access
 to the directory.
+
+`install.sh` writes that file itself. It used to be a file under `rootfs/`,
+but the `.gitignore` entry `kiosk.conf` (meant for the settings file) matched
+it too, so it was never committed: on a fresh clone `systemd-tmpfiles` exited
+with status 1 and `set -e` stopped the installer halfway. `.gitignore` now
+says `/kiosk.conf`.
 
 ## Operations
 

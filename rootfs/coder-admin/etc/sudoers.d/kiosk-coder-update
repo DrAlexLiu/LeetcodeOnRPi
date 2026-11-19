@@ -1,0 +1,4 @@
+# coder may update the system packages, and nothing else. The command is a
+# root-owned script that takes no arguments ("" below) and never prompts, so
+# it cannot be turned into a root shell. Installed only with CODER_ADMIN=yes.
+coder ALL=(root) NOPASSWD: /usr/local/sbin/kiosk-update ""

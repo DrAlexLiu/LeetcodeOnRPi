@@ -26,6 +26,7 @@ die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 . "$CONF"
 : "${MODE:=dual}" "${SCREEN_WIDTH:=1920}" "${SCREEN_HEIGHT:=1080}" "${SCREEN_REFRESH:=60.0}"
 : "${COMPOSITOR:=cage}" "${SCREEN_OUTPUT:=HDMI-A-1}" "${CODER_ADMIN:=no}"
+: "${REMOVE_OTHER_BROWSERS:=yes}" "${CODER_BLOCK_SSH:=no}"
 : "${START_URL:=https://leetcode.com}" "${ALLOWED_URLS:=leetcode.com challenges.cloudflare.com}"
 : "${STUDY_REPO_URL:=}" "${STUDY_DIR:=/home/coder/study}"
 : "${GIT_USER_NAME:=}" "${GIT_USER_EMAIL:=}"
@@ -33,6 +34,8 @@ die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 case "$MODE" in dual|single) ;; *) die "MODE must be 'dual' or 'single' (got '$MODE')" ;; esac
 case "$COMPOSITOR" in cage|frame) ;; *) die "COMPOSITOR must be 'cage' or 'frame' (got '$COMPOSITOR')" ;; esac
 case "$CODER_ADMIN" in yes|no) ;; *) die "CODER_ADMIN must be 'yes' or 'no' (got '$CODER_ADMIN')" ;; esac
+case "$REMOVE_OTHER_BROWSERS" in yes|no) ;; *) die "REMOVE_OTHER_BROWSERS must be 'yes' or 'no' (got '$REMOVE_OTHER_BROWSERS')" ;; esac
+case "$CODER_BLOCK_SSH" in yes|no) ;; *) die "CODER_BLOCK_SSH must be 'yes' or 'no' (got '$CODER_BLOCK_SSH')" ;; esac
 # FLAVOR names the rootfs/ tree to install. Every flavor except `single`
 # (Cage) runs Ubuntu Frame as the `frame` account.
 case "$MODE:$COMPOSITOR" in
@@ -81,6 +84,19 @@ if [ "$FLAVOR" != single ]; then
   snap list ubuntu-frame >/dev/null 2>&1 || snap install ubuntu-frame --channel=24/stable
   # Frame is started by our own systemd unit, not by the snap's daemon.
   snap set ubuntu-frame daemon=false
+fi
+
+# The kiosk browser is the locked-down Chrome. Any other browser is a way out
+# of the allowlist (open a link, reach the whole web), so remove it and hold it
+# so an upgrade cannot bring it back. No-op on images that ship none.
+if [ "$REMOVE_OTHER_BROWSERS" = yes ]; then
+  log "Removing any browser other than the kiosk Chrome"
+  for b in firefox firefox-esr chromium chromium-browser; do
+    if dpkg -l "$b" 2>/dev/null | grep -q '^ii'; then
+      DEBIAN_FRONTEND=noninteractive apt-get purge -y "$b" || warn "could not purge $b"
+      apt-mark hold "$b" >/dev/null 2>&1 || true
+    fi
+  done
 fi
 
 # ---------------------------------------------------------------- accounts --
@@ -212,6 +228,40 @@ else
         /etc/sudoers.d/kiosk-coder-update
 fi
 
+# Optional, off by default: stop coder ssh-ing out to other machines. git keeps
+# working because github is reached over its 443 endpoint, which the firewall
+# does not touch; so does all HTTPS (Codex, extensions). This is set up before
+# the practice repo is cloned below, so the clone already uses 443.
+LOCKDOWN_SRC=$REPO_DIR/rootfs/coder-lockdown
+if [ "$CODER_BLOCK_SSH" = yes ]; then
+  log "Blocking coder's outbound SSH (port 22); routing its git over github:443"
+  install -d -o coder -g coder -m 0700 /home/coder/.ssh
+  CODER_SSH_CFG=/home/coder/.ssh/config
+  if ! grep -q 'HostName ssh.github.com' "$CODER_SSH_CFG" 2>/dev/null; then
+    cat >> "$CODER_SSH_CFG" <<'EOF'
+
+Host github.com
+    HostName ssh.github.com
+    Port 443
+    User git
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+EOF
+    chown coder:coder "$CODER_SSH_CFG"; chmod 600 "$CODER_SSH_CFG"
+  fi
+  if ! sudo -u coder ssh-keygen -F '[ssh.github.com]:443' >/dev/null 2>&1; then
+    ssh-keyscan -p 443 -t ed25519 ssh.github.com 2>/dev/null \
+      | sudo -u coder tee -a /home/coder/.ssh/known_hosts >/dev/null
+  fi
+  install -D -m 0755 "$LOCKDOWN_SRC/usr/local/sbin/kiosk-coder-firewall" /usr/local/sbin/kiosk-coder-firewall
+  install -D -m 0644 "$LOCKDOWN_SRC/etc/systemd/system/kiosk-coder-firewall.service" \
+    /etc/systemd/system/kiosk-coder-firewall.service
+  systemctl enable kiosk-coder-firewall.service >/dev/null 2>&1 || warn "could not enable kiosk-coder-firewall"
+else
+  systemctl disable --now kiosk-coder-firewall.service 2>/dev/null || true
+  rm -f /usr/local/sbin/kiosk-coder-firewall /etc/systemd/system/kiosk-coder-firewall.service
+fi
+
 # ------------------------------------------------------------ coder / VS Code --
 log "Configuring VS Code for the coder account"
 CODE_USER_DIR=/home/coder/.config/Code/User
@@ -229,6 +279,12 @@ fi
 
 if [ -n "$GIT_USER_NAME" ]; then sudo -H -u coder git config --global user.name "$GIT_USER_NAME"; fi
 if [ -n "$GIT_USER_EMAIL" ]; then sudo -H -u coder git config --global user.email "$GIT_USER_EMAIL"; fi
+
+# Send any link coder opens (VS Code "open in browser", xdg-open) through the
+# policy-locked Chrome rather than an unmanaged browser.
+if [ "$REMOVE_OTHER_BROWSERS" = yes ]; then
+  sudo -H -u coder xdg-settings set default-web-browser google-chrome.desktop 2>/dev/null || true
+fi
 
 log "Preparing the practice workspace at $STUDY_DIR"
 if [ -n "$STUDY_REPO_URL" ] && [ ! -d "$STUDY_DIR/.git" ]; then

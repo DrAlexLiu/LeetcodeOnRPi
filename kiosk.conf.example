@@ -45,6 +45,18 @@ GIT_USER_EMAIL=""
 # Anything running as coder gets the same rights, AI agents in VS Code included.
 CODER_ADMIN=no
 
+# yes = remove any browser other than the kiosk Chrome (firefox, chromium) and
+# hold it so upgrades cannot bring it back, and point coder's default browser at
+# the locked Chrome. Another browser would be a way around the Chrome allowlist.
+REMOVE_OTHER_BROWSERS=yes
+
+# yes = block the coder account from ssh-ing out to other machines (TCP port 22).
+# git keeps working because github is routed over its 443 endpoint; all HTTPS
+# (Codex, extensions) is untouched. Stops coder reaching another host's sshd --
+# in particular logging in as the admin account here to inherit its sudo/keys.
+# For that to hold, give the admin account a real password (not the image default).
+CODER_BLOCK_SSH=no
+
 # Chrome's window title at the moment it is created. Dual mode pins Chrome
 # to a screen by this exact title. It is locale dependent: if your system
 # language is not English, see docs/LESSONS.md ("swap test") to find yours.

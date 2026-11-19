@@ -9,14 +9,22 @@ set -euo pipefail
 
 systemctl disable --now kiosk-health-check.timer kiosk-leetcode-dual kiosk-vscode-dual \
   kiosk-frame kiosk-side-picker kiosk-leetcode kiosk-vscode kiosk-mode-picker \
-  kiosk-frame@leetcode kiosk-frame@vscode kiosk-leetcode-frame kiosk-vscode-frame 2>/dev/null || true
+  kiosk-frame@leetcode kiosk-frame@vscode kiosk-leetcode-frame kiosk-vscode-frame \
+  kiosk-coder-firewall 2>/dev/null || true
+
+# Drop the live coder SSH-block rule (the unit is gone; the rule outlives it until reboot).
+for ipt in iptables ip6tables; do
+  while "$ipt" -D OUTPUT -p tcp --dport 22 -m owner --uid-owner coder -j REJECT 2>/dev/null; do :; done
+done
+# Let an upgrade reinstall the browsers we held back.
+apt-mark unhold firefox firefox-esr chromium chromium-browser >/dev/null 2>&1 || true
 
 rm -f /etc/systemd/system/kiosk-*.service /etc/systemd/system/kiosk-*.timer \
       /usr/local/sbin/kiosk-*.sh \
       /etc/opt/chrome/policies/managed/kiosk.json \
       /etc/pam.d/cage /etc/logrotate.d/kiosk /etc/tmpfiles.d/kiosk.conf \
       /usr/local/sbin/kiosk-update /etc/polkit-1/rules.d/50-kiosk-coder-network.rules \
-      /etc/sudoers.d/kiosk-coder-update
+      /etc/sudoers.d/kiosk-coder-update /usr/local/sbin/kiosk-coder-firewall
 rm -rf /etc/kiosk /var/lib/kiosk-side /var/lib/kiosk-mode
 systemctl daemon-reload
 

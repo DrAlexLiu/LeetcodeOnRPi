@@ -1,0 +1,13 @@
+[Unit]
+Description=Block coder's outbound SSH (TCP/22) to other machines
+After=network-pre.target
+Wants=network-pre.target
+ConditionKernelCommandLine=!kiosk=off
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/kiosk-coder-firewall
+
+[Install]
+WantedBy=multi-user.target

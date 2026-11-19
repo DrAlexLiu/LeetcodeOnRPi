@@ -124,7 +124,13 @@ kept in the `leetcode` account's Chrome profile.
   `kiosk-frame@vscode`: Frame as `frame`, upholding the one client of this boot.
 - **Chrome policy** blocks every URL except the allowlist, along with the
   dangerous `chrome://` pages, downloads, file dialogs, DevTools, extensions,
-  incognito and guest mode.
+  incognito and guest mode. For that allowlist to mean "only LeetCode", no other
+  browser may be installed: `REMOVE_OTHER_BROWSERS=yes` (the default) removes
+  and holds them and points coder's default browser at the locked Chrome.
+- **`CODER_BLOCK_SSH=yes`** (optional) stops the coder account ssh-ing out to
+  other machines, so it cannot reach another host's sshd and log in as the admin
+  account here. git still works, over github's 443 endpoint. Change the admin
+  account's password from the image default for this to be worth anything.
 - **VS Code** has GitHub Copilot turned off by default, because the point is
   to practise. Change it in `/home/coder/.config/Code/User/settings.json`.
 
@@ -144,6 +150,7 @@ rootfs/dual/                    Ubuntu Frame dual-screen units, picker, health c
 rootfs/single/                  Cage single-screen units and picker
 rootfs/single-frame/            Ubuntu Frame single-screen units, picker, display layout
 rootfs/coder-admin/             optional (CODER_ADMIN=yes): NetworkManager polkit rule, kiosk-update
+rootfs/coder-lockdown/          optional (CODER_BLOCK_SSH=yes): firewall that blocks coder's outbound ssh
 coder-home/                     default VS Code settings for the coder account
 docs/LESSONS.md                 design notes and troubleshooting
 ```

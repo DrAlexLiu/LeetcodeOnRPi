@@ -349,6 +349,40 @@ Plain `sudo apt` is not granted on purpose: `apt-get -o ...` can run any
 command, and dpkg's config-file prompt offers a root shell (`Z`). Anything
 that runs as coder, including an AI agent in VS Code, gets these two rights.
 
+## Keeping the browser lockdown whole
+
+The Chrome policy only locks down Chrome. Two holes stay open unless closed:
+
+- **Another browser.** If `firefox` or `chromium` is installed, a link opened
+  from VS Code (or any `xdg-open`) launches it, and it is not bound by the
+  Chrome allowlist -- the whole web is back. `REMOVE_OTHER_BROWSERS=yes` purges
+  and `apt-mark hold`s them and sets coder's default browser to
+  `google-chrome.desktop`, so even a deliberately opened link stays inside the
+  locked Chrome. On a Desktop image this removes the pre-installed Firefox; on a
+  Lite image it is a no-op.
+
+- **coder ssh-ing out.** The coder account has a real shell in the VS Code
+  terminal. Nothing stops it running `ssh admin@localhost` and, with the image's
+  default password, logging in as the admin account to inherit its sudo and
+  keys. `CODER_BLOCK_SSH=yes` adds `kiosk-coder-firewall.service`, an
+  `iptables`/`ip6tables` owner-match rule that REJECTs coder's outbound TCP/22:
+
+  ```sh
+  iptables -A OUTPUT -p tcp --dport 22 -m owner --uid-owner coder -j REJECT
+  ```
+
+  git would break, so coder's `~/.ssh/config` points `github.com` at
+  `ssh.github.com:443`; port 443 is untouched, so git and all HTTPS still work.
+  Caveat: the rule covers port 22 only. A determined user could `ssh -p <other>`;
+  the real backstop is that the admin account no longer has a guessable password.
+  **So change the admin password from the image default** (`passwd <admin>`);
+  key login keeps working from `authorized_keys`. Verify the block with:
+
+  ```sh
+  sudo -u coder ssh -o BatchMode=yes admin@localhost true   # Connection refused
+  sudo -u coder git -C ~coder/study ls-remote               # still works (443)
+  ```
+
 ## Chrome lockdown
 
 `/etc/opt/chrome/policies/managed/kiosk.json`:

@@ -27,6 +27,7 @@ die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 : "${MODE:=dual}" "${SCREEN_WIDTH:=1920}" "${SCREEN_HEIGHT:=1080}" "${SCREEN_REFRESH:=60.0}"
 : "${COMPOSITOR:=cage}" "${SCREEN_OUTPUT:=HDMI-A-1}" "${CODER_ADMIN:=no}"
 : "${REMOVE_OTHER_BROWSERS:=yes}" "${CODER_BLOCK_SSH:=no}"
+: "${CODER_EXTENSIONS:=openai.chatgpt ms-python.python}"
 : "${START_URL:=https://leetcode.com}" "${ALLOWED_URLS:=leetcode.com challenges.cloudflare.com}"
 : "${STUDY_REPO_URL:=}" "${STUDY_DIR:=/home/coder/study}"
 : "${GIT_USER_NAME:=}" "${GIT_USER_EMAIL:=}"
@@ -284,6 +285,24 @@ if [ -n "$GIT_USER_EMAIL" ]; then sudo -H -u coder git config --global user.emai
 # policy-locked Chrome rather than an unmanaged browser.
 if [ "$REMOVE_OTHER_BROWSERS" = yes ]; then
   sudo -H -u coder xdg-settings set default-web-browser google-chrome.desktop 2>/dev/null || true
+fi
+
+# VS Code extensions for coder (installed with `code` over HTTPS). Then always
+# remove ms-python.vscode-python-envs: the Python extension pack pulls in this
+# experimental environment manager, which on arm64 boards hangs activating and
+# takes the whole extension host down with it -- "Run Python File" does nothing
+# and Codex will not open. The classic ms-python.python flow (with
+# python.defaultInterpreterPath in settings) runs fine without it.
+if [ -n "$CODER_EXTENSIONS" ]; then
+  log "Installing VS Code extensions for coder: $CODER_EXTENSIONS"
+  for ext in $CODER_EXTENSIONS; do
+    sudo -H -u coder /usr/bin/code --install-extension "$ext" --force >/dev/null 2>&1 \
+      || warn "could not install VS Code extension '$ext'"
+  done
+fi
+if sudo -H -u coder /usr/bin/code --list-extensions 2>/dev/null | grep -qx ms-python.vscode-python-envs; then
+  log "Removing the experimental ms-python.vscode-python-envs (hangs the extension host)"
+  sudo -H -u coder /usr/bin/code --uninstall-extension ms-python.vscode-python-envs >/dev/null 2>&1 || true
 fi
 
 log "Preparing the practice workspace at $STUDY_DIR"

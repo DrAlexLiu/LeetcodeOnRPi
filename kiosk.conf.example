@@ -40,6 +40,13 @@ STUDY_DIR=/home/coder/study
 GIT_USER_NAME=""
 GIT_USER_EMAIL=""
 
+# VS Code extensions to install for the coder account (space separated).
+# openai.chatgpt = Codex; ms-python.python = Python (Pylance + debugpy come with
+# it). The installer then removes ms-python.vscode-python-envs, an experimental
+# env manager from the Python pack that hangs the extension host on arm64 boards
+# (it takes "Run Python File" and Codex down with it). Leave empty to install none.
+CODER_EXTENSIONS="openai.chatgpt ms-python.python"
+
 # yes = the coder account (VS Code) may manage Wi-Fi with nmtui/nmcli and run
 # `sudo kiosk-update` (non-interactive apt update + full-upgrade), nothing else.
 # Anything running as coder gets the same rights, AI agents in VS Code included.

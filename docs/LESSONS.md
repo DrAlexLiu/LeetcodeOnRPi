@@ -383,6 +383,39 @@ The Chrome policy only locks down Chrome. Two holes stay open unless closed:
   sudo -u coder git -C ~coder/study ls-remote               # still works (443)
   ```
 
+## VS Code extensions for coder, and the one that must go
+
+`CODER_EXTENSIONS` installs extensions for the coder account with
+`code --install-extension`. The default is `openai.chatgpt` (Codex) and
+`ms-python.python` (Python; Pylance and debugpy come with it).
+
+Installing `ms-python.python` also pulls in **`ms-python.vscode-python-envs`**
+through its extension pack. On the Dragon Q6A this experimental environment
+manager hangs during activation:
+
+```
+[pet] Starting Python Locator ...
+Extension for manager ms-python.python:venv is not active: Activating...
+[error] Setup appears hung during stage: envSelection      # ~2 minutes later
+```
+
+A single extension stuck in activation stalls the whole extension host, so the
+symptoms are diffuse and misleading: "Run Python File" does nothing, the Codex
+view will not open, and the built-in chat logs
+`Timed out waiting for authentication provider 'github' to register` on a loop.
+None of that is a cookie, login or network problem -- Codex's token in
+`~/.codex/auth.json` and Chrome's cookies persist fine across reboots.
+
+`install.sh` removes `ms-python.vscode-python-envs` after installing the pack
+(it is not a hard dependency of `ms-python.python`). The classic Python flow
+then selects the interpreter from `python.defaultInterpreterPath`
+(`/usr/bin/python3`, set in `coder-home/settings.json`) and Run works. If you
+reinstall the Python extension by hand, remove the env manager again:
+
+```sh
+sudo -H -u coder code --uninstall-extension ms-python.vscode-python-envs
+```
+
 ## Chrome lockdown
 
 `/etc/opt/chrome/policies/managed/kiosk.json`:

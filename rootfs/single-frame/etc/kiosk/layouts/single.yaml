@@ -1,0 +1,8 @@
+layouts:
+  default:
+    cards:
+    - card-id: 0
+      @SCREEN_OUTPUT@:
+        state: enabled
+        mode: @SCREEN_WIDTH@x@SCREEN_HEIGHT@@@SCREEN_REFRESH@
+        position: [0, 0]

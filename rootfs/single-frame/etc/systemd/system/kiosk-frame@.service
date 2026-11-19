@@ -1,0 +1,27 @@
+[Unit]
+Description=Ubuntu Frame display host for the %i kiosk (single screen)
+After=systemd-user-sessions.service systemd-logind.service getty@tty1.service
+Wants=systemd-logind.service
+Conflicts=getty@tty1.service autovt@tty1.service
+# Started by kiosk-mode-picker with the app of this boot (leetcode or vscode).
+# Upholds= brings the client back after Frame restarts (BindsTo= alone does not).
+Upholds=kiosk-%i-frame.service
+ConditionKernelCommandLine=!kiosk=off
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+User=frame
+PAMName=cage
+TTYPath=/dev/tty1
+StandardInput=tty-fail
+StandardOutput=journal
+StandardError=journal
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+UtmpIdentifier=tty1
+ExecStart=/etc/kiosk/frame-host.sh
+Restart=always
+RestartSec=2
+KillMode=control-group

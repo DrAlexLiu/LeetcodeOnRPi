@@ -1,0 +1,14 @@
+#!/bin/sh
+# Block the coder account from ssh-ing out to other machines (TCP port 22).
+# git reaches github over its 443 endpoint (see coder ~/.ssh/config) and all
+# HTTPS stays open, so pushing solutions and Codex are unaffected. The point is
+# that coder cannot reach another host's sshd -- in particular it cannot log in
+# as the admin account on this board and inherit its sudo and keys.
+#
+# Idempotent: remove any copy of our rule first, then add exactly one, for both
+# IPv4 and IPv6.
+set -eu
+for ipt in iptables ip6tables; do
+  while "$ipt" -D OUTPUT -p tcp --dport 22 -m owner --uid-owner coder -j REJECT 2>/dev/null; do :; done
+  "$ipt" -A OUTPUT -p tcp --dport 22 -m owner --uid-owner coder -j REJECT
+done

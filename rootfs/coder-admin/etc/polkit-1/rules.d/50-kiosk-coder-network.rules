@@ -1,0 +1,9 @@
+// Let the kiosk's coder account manage networking (nmtui, nmcli) without a
+// password. Its VS Code session has no seat, so the default "active local
+// session" rule does not cover it. Installed only with CODER_ADMIN=yes.
+polkit.addRule(function (action, subject) {
+    if (subject.user === "coder" &&
+        action.id.indexOf("org.freedesktop.NetworkManager.") === 0) {
+        return polkit.Result.YES;
+    }
+});

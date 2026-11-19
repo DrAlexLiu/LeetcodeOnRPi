@@ -7,5 +7,9 @@
     },
     "git.enableSmartCommit": true,
     "workbench.startupEditor": "none",
-    "window.title": "Visual Studio Code"
+    "window.title": "Visual Studio Code",
+    "security.workspace.trust.enabled": false,
+    "python.defaultInterpreterPath": "/usr/bin/python3",
+    "python.terminal.activateEnvironment": false,
+    "python.experiments.enabled": false
 }

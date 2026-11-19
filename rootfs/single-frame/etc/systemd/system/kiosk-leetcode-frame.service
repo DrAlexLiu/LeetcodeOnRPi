@@ -1,0 +1,19 @@
+[Unit]
+Description=LeetCode kiosk (Chrome, full screen on Ubuntu Frame)
+After=kiosk-frame@leetcode.service network-online.target
+BindsTo=kiosk-frame@leetcode.service
+Wants=network-online.target
+ConditionKernelCommandLine=!kiosk=off
+StartLimitIntervalSec=600
+StartLimitBurst=15
+
+[Service]
+ExecStartPre=/usr/bin/python3 /etc/kiosk/wait-for-wayland.py
+User=leetcode
+PAMName=cage
+
+Environment=WAYLAND_DISPLAY=/run/user/@FRAME_UID@/wayland-0
+ExecStart=/bin/sh -c 'exec /usr/bin/google-chrome-stable --ozone-platform=wayland --kiosk --no-first-run --no-default-browser-check "@START_URL@" >>/var/log/kiosk/leetcode.log 2>&1'
+Restart=always
+RestartSec=3
+KillMode=control-group
